@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模拟版图知识手册</title>
+<meta name="description" content="模拟/数模混合 IC 版图设计知识手册：器件与工艺、匹配、FinFET、Floorplan、物理验证、PEX、ESD 与 EM/IR、EDA 脚本、PDK 迁移、车规可靠性、3D IC 与高级工程场景。">
+<style>
+:root{
+  --bg:#fafaf8; --fg:#1a1a18; --muted:#6b6b66; --card:#ffffff;
+  --border:#e4e2dc; --accent:#2b5f8a; --accent-soft:#eef4f9; --chip:#f0efe9;
+}
+html.dark{
+  --bg:#16171a; --fg:#e6e4de; --muted:#9a988f; --card:#1e2024;
+  --border:#33353b; --accent:#7db2dd; --accent-soft:#22303c; --chip:#26282d;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  line-height:1.75;font-size:15px}
+a{color:var(--accent);text-decoration:none}
+header.top{position:sticky;top:0;z-index:10;background:var(--bg);
+  border-bottom:1px solid var(--border);padding:10px 16px}
+.toprow{max-width:880px;margin:0 auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.toprow h1{font-size:17px;margin:0;white-space:nowrap}
+.toprow .stat{color:var(--muted);font-size:12px;white-space:nowrap}
+.toprow input{flex:1;min-width:140px;padding:5px 10px;border:1px solid var(--border);
+  border-radius:6px;background:var(--card);color:var(--fg);font-size:13px}
+.btn{border:1px solid var(--border);background:var(--chip);color:var(--fg);
+  border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+nav.toc{max-width:880px;margin:14px auto 0;padding:0 16px;display:flex;flex-wrap:wrap;gap:6px}
+nav.toc a{font-size:12px;background:var(--chip);border:1px solid var(--border);
+  border-radius:20px;padding:2px 10px;color:var(--fg)}
+nav.toc a:hover{border-color:var(--accent);color:var(--accent)}
+main{max-width:880px;margin:0 auto;padding:8px 16px 80px}
+section.chapter{margin-top:34px}
+section.chapter h2{font-size:19px;margin:0 0 4px;border-bottom:2px solid var(--accent);padding-bottom:6px}
+section.chapter h2 .n{color:var(--muted);font-size:13px;font-weight:normal;margin-left:8px}
+p.intro{color:var(--muted);font-size:13px;margin:8px 0 14px}
+h3.group{font-size:15px;margin:22px 0 8px;color:var(--accent)}
+.entry{background:var(--card);border:1px solid var(--border);border-radius:8px;
+  margin:8px 0;overflow:hidden}
+.entry>button.head{width:100%;text-align:left;background:none;border:none;cursor:pointer;
+  padding:9px 14px;font-size:14px;color:var(--fg);display:flex;gap:10px;align-items:baseline;
+  font-family:inherit}
+.entry>button.head:hover{background:var(--accent-soft)}
+.entry .eid{color:var(--accent);font-weight:600;white-space:nowrap;font-size:13px}
+.entry .body{display:none;padding:2px 16px 12px;border-top:1px dashed var(--border)}
+.entry.open .body{display:block}
+.entry .body p{margin:8px 0;font-size:14px}
+.entry .lbl{display:inline-block;background:var(--accent-soft);color:var(--accent);
+  border-radius:4px;font-size:12px;padding:0 6px;margin-right:6px}
+.entry table{border-collapse:collapse;width:100%;font-size:13px;margin:10px 0}
+.entry th,.entry td{border:1px solid var(--border);padding:6px 8px;text-align:left;vertical-align:top}
+.entry th{background:var(--chip)}
+.empty{color:var(--muted);text-align:center;margin:40px 0}
+footer{max-width:880px;margin:0 auto;padding:20px 16px;color:var(--muted);font-size:12px;
+  border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="toprow">
+    <h1>模拟版图知识手册</h1>
+    <span class="stat" id="stat"></span>
+    <input id="q" type="search" placeholder="搜索：如 共质心 / PERC / 质心 / 车规…">
+    <button class="btn" id="expand">全部展开</button>
+    <button class="btn" id="theme">明/暗</button>
+  </div>
+  <nav class="toc" id="toc"></nav>
+</header>
+<main id="main"></main>
+<footer>
+  本手册为模拟/数模混合 IC 版图设计的通用工程知识整理。
+  条目中的层名、参数与数值均为概念示例，具体限制以当前 PDK、签核 deck 与项目要求为准。
+</footer>
+<script src="data.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const H=window.HANDBOOK;
+
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+
+function mdTable(src){
+  const rows=src.trim().split("\n").filter(r=>r.trim()&&!/^\|[\s\-|]+\|$/.test(r.trim()));
+  let html="<table>";
+  rows.forEach((r,i)=>{
+    const cells=r.replace(/^\|/,"").replace(/\|$/,"").split("|");
+    html+="<tr>"+cells.map(c=>i===0?`<th>${esc(c.trim())}</th>`:`<td>${esc(c.trim())}</td>`).join("")+"</tr>";
+  });
+  return html+"</table>";
+}
+
+function render(){
+  const main=$("#main");
+  let html="";
+  H.chapters.forEach(ch=>{
+    html+=`<section class="chapter" id="ch${ch.id}">
+      <h2>${ch.id==="00"?esc(ch.title):`第 ${parseInt(ch.id)} 章 ${esc(ch.title)}`}
+      <span class="n">${ch.entries.length} 条</span></h2>
+      ${ch.intro?`<p class="intro">${esc(ch.intro)}</p>`:""}`;
+    let lastGroup=null;
+    ch.entries.forEach(e=>{
+      if(e.group&&e.group!==lastGroup){lastGroup=e.group;html+=`<h3 class="group">${esc(e.group)}</h3>`;}
+      html+=`<div class="entry" data-search="${esc((e.id+" "+e.title+" "+e.parts.map(p=>p[1]).join(" ")).toLowerCase())}">
+        <button class="head" onclick="this.parentElement.classList.toggle('open')">
+          <span class="eid">${esc(e.id)}</span><span>${esc(e.title)}</span>
+        </button><div class="body">`;
+      e.parts.forEach(([lbl,txt])=>{
+        if(lbl==="表格"){html+=mdTable(txt);}
+        else if(lbl){html+=`<p><span class="lbl">${esc(lbl)}</span>${esc(txt)}</p>`;}
+        else{html+=`<p>${esc(txt)}</p>`;}
+      });
+      html+=`</div></div>`;
+    });
+    html+="</section>";
+  });
+  main.innerHTML=html;
+  $("#stat").textContent=`全书 ${H.chapters.length} 章 · ${H.total} 条`;
+  $("#toc").innerHTML=H.chapters.map(ch=>
+    `<a href="#ch${ch.id}">${ch.id==="00"?esc(ch.title):`${parseInt(ch.id)}. ${esc(ch.title)}`}</a>`).join("");
+}
+
+$("#q").addEventListener("input",e=>{
+  const q=e.target.value.trim().toLowerCase();
+  let visible=0;
+  document.querySelectorAll(".entry").forEach(el=>{
+    const hit=!q||el.dataset.search.includes(q);
+    el.style.display=hit?"":"none";
+    if(hit){visible++;if(q)el.classList.add("open");}
+  });
+  document.querySelectorAll("section.chapter").forEach(sec=>{
+    sec.style.display=[...sec.querySelectorAll(".entry")].some(el=>el.style.display!=="none")?"":"none";
+  });
+  $("#stat").textContent=q?`命中 ${visible} / ${H.total} 条`:`全书 ${H.chapters.length} 章 · ${H.total} 条`;
+});
+
+let allOpen=false;
+$("#expand").addEventListener("click",()=>{
+  allOpen=!allOpen;
+  document.querySelectorAll(".entry").forEach(el=>el.classList.toggle("open",allOpen));
+  $("#expand").textContent=allOpen?"全部折叠":"全部展开";
+});
+
+const themeBtn=$("#theme");
+function setTheme(d){document.documentElement.classList.toggle("dark",d);
+  try{localStorage.setItem("alh-theme",d?"dark":"light");}catch(_){}}
+themeBtn.addEventListener("click",()=>setTheme(!document.documentElement.classList.contains("dark")));
+try{setTheme(localStorage.getItem("alh-theme")==="dark"||
+  (localStorage.getItem("alh-theme")===null&&matchMedia("(prefers-color-scheme: dark)").matches));}catch(_){}
+
+render();
+</script>
+</body>
+</html>

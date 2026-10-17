@@ -1,0 +1,9 @@
+{
+  "name": "analog-layout-handbook",
+  "version": "1.0.0",
+  "private": true,
+  "description": "模拟版图知识手册 —— 静态站点，GitHub Pages 直接可用",
+  "scripts": {
+    "dev": "node server.js"
+  }
+}
